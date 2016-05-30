@@ -2,7 +2,7 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-
+var session = require('express-session');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -21,27 +21,34 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(session({secret: 'nyancat'}));
 
+app.get('/', function(req, res) {
+  if (req.session.username) {
+    res.render('index');
+  } else {
+    console.log("access restricted, no session username set.");
+    res.redirect('/login');
+  }
+});
 
-app.get('/', 
-function(req, res) {
+app.get('/create', function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
-function(req, res) {
-  res.render('index');
+app.get('/links', function(req, res) {
+  if (req.session.username) {
+    Links.reset().fetch().then(function(links) {
+      res.send(200, links.models);
+    });
+  } else {
+    console.log("access restricted, no session username set.");
+    // res.send(401, links.models);
+    res.redirect('/login');
+  }
 });
 
-app.get('/links', 
-function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.send(200, links.models);
-  });
-});
-
-app.post('/links', 
-function(req, res) {
+app.post('/links', function(req, res) {
   var uri = req.body.url;
 
   if (!util.isValidUrl(uri)) {
@@ -79,6 +86,56 @@ function(req, res) {
 // e.g. login, logout, etc.
 /************************************************************/
 
+app.get('/login', function(req, res) {
+  res.render('login');
+});
+
+app.post('/login', function(req, res) {
+  req.session.username = req.body.username;
+  console.log("req.session: ", req.session);
+  res.redirect('index');
+});
+
+app.get('/signup', function(req, res) {
+  res.render('signup');
+});
+
+app.post('/signup', function(req, res) {
+  // Will need to verify where the username and password are in request
+  // Just a guess!
+  var username = req.body.username;
+  var password = req.body.password;
+
+  new User({ username: username}).fetch().then(function(found) {
+    if (found) {
+      // Send error saying username already exists
+      console.error('Username already exists!');
+    } else {
+      console.log('username was not found (create a new one)')
+      var user = new User({
+        username: username,
+        password: password
+      });
+
+      user.save().then(function(newUser) {
+        Users.add(newUser);
+        res.send(200, newUser.username);
+        res.redirect('index');
+      })
+    }
+  });
+
+});
+
+app.get('/logout', function(req, res) {
+  req.session.destroy(function(err){
+    if (!err) {
+      res.redirect('/login');
+    } else {
+      console.error('error destroying session: ', err);
+    }
+  });
+});
 
 
 /************************************************************/
