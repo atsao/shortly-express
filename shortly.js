@@ -35,27 +35,33 @@ app.get('/', function(req, res) {
 });
 
 app.get('/create', function(req, res) {
-  res.render('index');
+  if (req.session.username) {
+    res.render('index');
+  } else {
+    console.log("access restricted, no session username set.");
+    res.redirect('/login');
+  }
+  // res.render('index');
 });
 
 app.get('/links', function(req, res) {
   var username = req.session.username;
   var userId;
-
-  db.knex('users').where('username', '=', username).then(function(row) {
-    userId = row[0].id;
-    if (req.session.username) {
+  
+  if (username) {
+    db.knex('users').where('username', '=', username).then(function(row) {
+      console.log("row: ", row);
+      userId = row[0].id;
       Links.reset().query('where', 'user_id', '=', userId).fetch().then(function(links) {
         console.log('links.models:', links.models);
         res.send(200, links.models);
       });
-    } else {
+    });
+  } else {
       console.log("access restricted, no session username set.");
       // res.send(401, links.models);
       res.redirect('/login');
     }
-  });
-
 });
 
 app.post('/links', function(req, res) {
@@ -114,21 +120,32 @@ app.post('/login', function(req, res) {
 
   db.knex('users')
     .where('username', '=', username).then(function(row) {
-      var savedPassword = row[0].password;
-      bcrypt.compare(password, savedPassword, function(err, pwCorrect) {
-      if (pwCorrect) {
-        console.log("you are valid!");
+      console.log("empty array truthy?: ", [] == true);
+      console.log("row: ", row.length);
+      if (row.length) {
+        var savedPassword = row[0].password;
+        if (password === savedPassword) {
+          console.log("you are valid! (plain text)");
           req.session.username = req.body.username;
-          res.redirect('index');
+          res.redirect('/');
+        } else {
+          bcrypt.compare(password, savedPassword, function(err, pwCorrect) {
+            if (pwCorrect) {
+              console.log("you are valid! (hashed)");
+              req.session.username = req.body.username;
+              res.redirect('/');
+            } else {
+              console.log("password did not match");
+              res.redirect('login');
+              // window.alert('Incorrect password!'); // ???
+              // res.end();
+            }
+          });
+        }
       } else {
-        console.log("password did not match");
-        res.redirect('login');
-        // window.alert('Incorrect password!'); // ???
-        res.end();
+        res.redirect('/login');
       }
     });
-  });
-
 });
 
 app.get('/signup', function(req, res) {
@@ -156,7 +173,7 @@ app.post('/signup', function(req, res) {
         user.save().then(function(newUser) {
           Users.add(newUser);
           res.send(200, newUser.username);
-          res.redirect('index');
+          res.redirect('/');
         })
       }
     });
