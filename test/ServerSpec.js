@@ -162,13 +162,30 @@ describe('', function() {
       var link;
 
       beforeEach(function(done){
-        // save a link to the database
-        link = new Link({
-          url: 'http://www.github.com/',
-          title: 'GitHub · Where software is built',
-          base_url: 'http://127.0.0.1:4568'
-        });
-        link.save().then(function(){
+      // NOTE: was originally as what's commented out below. This does not add a user_id, so we changed it to be an actualy POST request instead.
+      //   // save a link to the database
+      //   link = new Link({
+      //     url: 'http://www.github.com/',
+      //     title: 'GitHub · Where software is built',
+      //     base_url: 'http://127.0.0.1:4568'
+      //   });
+      //   link.save().then(function(){
+      //     // done();
+      //   });
+
+        var options = {
+          'method': 'POST',
+          'followAllRedirects': true,
+          'uri': 'http://127.0.0.1:4568/links',
+          'json': {
+            url: 'http://www.github.com/',
+            title: 'How people build software · GitHub', // updated to be GitHub's new slogan
+            base_url: 'http://127.0.0.1:4568'
+          }
+        };
+        // login via form and save session info
+        requestWithSession(options, function(error, res, body) {
+          link = body;
           done();
         });
       });
@@ -185,7 +202,8 @@ describe('', function() {
 
         requestWithSession(options, function(error, res, body) {
           var code = res.body.code;
-          expect(code).to.equal(link.get('code'));
+          // below was originally link.get('code'), which no longer worked once we changed it from adding directly to the db to doing a POST request. Same each place link.code appears below.
+          expect(code).to.equal(link.code);
           done();
         });
       });
@@ -193,7 +211,7 @@ describe('', function() {
       it('Shortcode redirects to correct url', function(done) {
         var options = {
           'method': 'GET',
-          'uri': 'http://127.0.0.1:4568/' + link.get('code')
+          'uri': 'http://127.0.0.1:4568/' + link.code
         };
 
         requestWithSession(options, function(error, res, body) {
@@ -210,8 +228,8 @@ describe('', function() {
         };
 
         requestWithSession(options, function(error, res, body) {
-          expect(body).to.include('"title":"GitHub · Where software is built"');
-          expect(body).to.include('"code":"' + link.get('code') + '"');
+          expect(body).to.include('"title":"How people build software · GitHub"');  // updated to be GitHub's new slogan
+          expect(body).to.include('"code":"' + link.code + '"');
           done();
         });
       });
@@ -221,11 +239,7 @@ describe('', function() {
   }); // 'Link creation'
 
   describe('Privileged Access', function() { // added
-
-    // beforeEach(function(done){('Privileged Access:', function(){
-    //   // done();
-    //   }); // added
-    // }); // added
+    // we added the above describe and deleted the beforeEach that was incorrectly there
 
     it('Redirects to login page if a user tries to access the main page and is not signed in', function(done) {
       request('http://127.0.0.1:4568/', function(error, res, body) {
@@ -344,6 +358,4 @@ describe('', function() {
     });
 
   }); // 'Account Login'
-// added another set of '});' below to not get an error when running tests
-// });
 });

@@ -50,10 +50,8 @@ app.get('/links', function(req, res) {
   
   if (username) {
     db.knex('users').where('username', '=', username).then(function(row) {
-      console.log("row: ", row);
       userId = row[0].id;
       Links.reset().query('where', 'user_id', '=', userId).fetch().then(function(links) {
-        console.log('links.models:', links.models);
         res.send(200, links.models);
       });
     });
@@ -120,8 +118,6 @@ app.post('/login', function(req, res) {
 
   db.knex('users')
     .where('username', '=', username).then(function(row) {
-      console.log("empty array truthy?: ", [] == true);
-      console.log("row: ", row.length);
       if (row.length) {
         var savedPassword = row[0].password;
         if (password === savedPassword) {
