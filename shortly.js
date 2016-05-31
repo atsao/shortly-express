@@ -39,19 +39,29 @@ app.get('/create', function(req, res) {
 });
 
 app.get('/links', function(req, res) {
-  if (req.session.username) {
-    Links.reset().fetch().then(function(links) {
-      res.send(200, links.models);
-    });
-  } else {
-    console.log("access restricted, no session username set.");
-    // res.send(401, links.models);
-    res.redirect('/login');
-  }
+  var username = req.session.username;
+  var userId;
+
+  db.knex('users').where('username', '=', username).then(function(row) {
+    userId = row[0].id;
+    if (req.session.username) {
+      Links.reset().query('where', 'user_id', '=', userId).fetch().then(function(links) {
+        console.log('links.models:', links.models);
+        res.send(200, links.models);
+      });
+    } else {
+      console.log("access restricted, no session username set.");
+      // res.send(401, links.models);
+      res.redirect('/login');
+    }
+  });
+
 });
 
 app.post('/links', function(req, res) {
   var uri = req.body.url;
+  var username = req.session.username;
+  var userId;
 
   if (!util.isValidUrl(uri)) {
     console.log('Not a valid url: ', uri);
@@ -68,16 +78,21 @@ app.post('/links', function(req, res) {
           return res.send(404);
         }
 
-        var link = new Link({
-          url: uri,
-          title: title,
-          base_url: req.headers.origin
+        db.knex('users').where('username', '=', username).then(function(row) {
+          userId = row[0].id;
+          var link = new Link({
+            url: uri,
+            title: title,
+            base_url: req.headers.origin,
+            user_id: userId
+          });
+
+          link.save().then(function(newLink) {
+            Links.add(newLink);
+            res.send(200, newLink);
+          });
         });
 
-        link.save().then(function(newLink) {
-          Links.add(newLink);
-          res.send(200, newLink);
-        });
       });
     }
   });
