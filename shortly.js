@@ -119,11 +119,12 @@ app.post('/login', function(req, res) {
       if (pwCorrect) {
         console.log("you are valid!");
           req.session.username = req.body.username;
-          res.redirect('index');           
+          res.redirect('index');
       } else {
         console.log("password did not match");
         res.redirect('login');
         // window.alert('Incorrect password!'); // ???
+        res.end();
       }
     });
   });
@@ -168,7 +169,7 @@ app.post('/signup', function(req, res) {
 app.get('/logout', function(req, res) {
   req.session.destroy(function(err){
     if (!err) {
-      res.redirect('/login');
+      res.render('login');
     } else {
       console.error('error destroying session: ', err);
     }
