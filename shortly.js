@@ -3,6 +3,8 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
+var bcrypt = require('bcrypt-nodejs');
+
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -91,9 +93,26 @@ app.get('/login', function(req, res) {
 });
 
 app.post('/login', function(req, res) {
-  req.session.username = req.body.username;
-  console.log("req.session: ", req.session);
-  res.redirect('index');
+
+  var username = req.body.username;
+  var password = req.body.password;
+
+  db.knex('users')
+    .where('username', '=', username).then(function(row) {
+      var savedPassword = row[0].password;
+      bcrypt.compare(password, savedPassword, function(err, pwCorrect) {
+      if (pwCorrect) {
+        console.log("you are valid!");
+          req.session.username = req.body.username;
+          res.redirect('index');           
+      } else {
+        console.log("password did not match");
+        res.redirect('login');
+        // window.alert('Incorrect password!'); // ???
+      }
+    });
+  });
+
 });
 
 app.get('/signup', function(req, res) {
@@ -106,24 +125,28 @@ app.post('/signup', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
 
-  new User({ username: username}).fetch().then(function(found) {
-    if (found) {
-      // Send error saying username already exists
-      console.error('Username already exists!');
-    } else {
-      console.log('username was not found (create a new one)')
-      var user = new User({
-        username: username,
-        password: password
-      });
+  bcrypt.hash(password, null, null, function(err, hash) {
+    new User({ username: username}).fetch().then(function(found) {
+      if (found) {
+        // Send error saying username already exists
+        console.error('Username already exists!');
+      } else {
+        console.log('username was not found (create a new one)')
+        var user = new User({
+          username: username,
+          password: hash
+        });
 
-      user.save().then(function(newUser) {
-        Users.add(newUser);
-        res.send(200, newUser.username);
-        res.redirect('index');
-      })
-    }
+        user.save().then(function(newUser) {
+          Users.add(newUser);
+          res.send(200, newUser.username);
+          res.redirect('index');
+        })
+      }
+    });
+    
   });
+
 
 });
 
