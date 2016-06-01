@@ -9,14 +9,18 @@ var User = db.Model.extend({
     return this.hasMany(Link);
   },
   initialize: function() {
-    this.on('creating', function(model, attrs, options) {
-      bcrypt.hash(model.get('password'), null, null, function(error, result) {
-        if (!error) {
-          model.set('password', result);
-        } else {
-          console.error('Error hashing password. Error:', error);
-        }
-      });
+    this.on('creating', this.setPassword);
+  },
+  checkPassword: function(plainTextPassword, callback) {
+    bcrypt.compare(plainTextPassword, this.get('password'), function(err, matched) {
+      callback(matched);
+    });
+  },
+  setPassword: function(model, attrs, options) {
+    var hasher = Promise.promisify(bcrypt.hash);
+
+    return hasher(this.get('password'), null, null).bind(this).then(function(hashedPassword) {
+      this.set('password', hashedPassword);
     });
   }
 });

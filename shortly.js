@@ -116,32 +116,23 @@ app.post('/login', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
 
-  db.knex('users')
-    .where('username', '=', username).then(function(row) {
-      if (row.length) {
-        var savedPassword = row[0].password;
-        if (password === savedPassword) {
-          console.log("you are valid! (plain text)");
+  new User({ username: username}).fetch().then(function(user) {
+    if (user) {
+      user.checkPassword(password, function(matched) {
+        if (matched) {
           req.session.username = req.body.username;
-          res.redirect('/');
+          res.redirect('/');      
         } else {
-          bcrypt.compare(password, savedPassword, function(err, pwCorrect) {
-            if (pwCorrect) {
-              console.log("you are valid! (hashed)");
-              req.session.username = req.body.username;
-              res.redirect('/');
-            } else {
-              console.log("password did not match");
-              res.redirect('login');
-              // window.alert('Incorrect password!'); // ???
-              // res.end();
-            }
-          });
+          console.log("password did not match");
+          res.redirect('/login');
+          // window.alert('Incorrect password!'); // ???
         }
-      } else {
-        res.redirect('/login');
-      }
-    });
+      });
+    } else {
+      console.log("User does not exist!");
+      res.redirect('/login');
+    }
+  });
 });
 
 app.get('/signup', function(req, res) {
@@ -149,34 +140,25 @@ app.get('/signup', function(req, res) {
 });
 
 app.post('/signup', function(req, res) {
-  // Will need to verify where the username and password are in request
-  // Just a guess!
+
   var username = req.body.username;
   var password = req.body.password;
 
-  bcrypt.hash(password, null, null, function(err, hash) {
-    new User({ username: username}).fetch().then(function(found) {
-      if (found) {
-        // Send error saying username already exists
-        console.error('Username already exists!');
-      } else {
-        console.log('username was not found (create a new one)')
-        var user = new User({
-          username: username,
-          password: hash
-        });
-
-        user.save().then(function(newUser) {
-          Users.add(newUser);
-          res.send(200, newUser.username);
-          res.redirect('/');
-        })
-      }
-    });
-    
+  new User({ username: username}).fetch().then(function(found) {
+    if (found) {
+      console.error('Username already exists!');
+    } else {
+      var user = new User({
+        username: username,
+        password: password
+      });
+      user.save().then(function(newUser) {
+        Users.add(newUser);
+        res.send(200, newUser.username);
+        res.redirect('/');
+      });
+    }
   });
-
-
 });
 
 app.get('/logout', function(req, res) {
