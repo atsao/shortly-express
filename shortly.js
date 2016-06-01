@@ -25,41 +25,18 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 app.use(session({secret: 'nyancat'}));
 
-app.get('/', function(req, res) {
-  if (req.session.username) {
-    res.render('index');
-  } else {
-    console.log("access restricted, no session username set.");
-    res.redirect('/login');
-  }
+app.get('/', util.checkUser, function(req, res) {
+  res.render('index');
 });
 
-app.get('/create', function(req, res) {
-  if (req.session.username) {
-    res.render('index');
-  } else {
-    console.log("access restricted, no session username set.");
-    res.redirect('/login');
-  }
-  // res.render('index');
+app.get('/create', util.checkUser, function(req, res) {
+  res.render('index');
 });
 
-app.get('/links', function(req, res) {
-  var username = req.session.username;
-  var userId;
-  
-  if (username) {
-    db.knex('users').where('username', '=', username).then(function(row) {
-      userId = row[0].id;
-      Links.reset().query('where', 'user_id', '=', userId).fetch().then(function(links) {
-        res.send(200, links.models);
-      });
-    });
-  } else {
-      console.log("access restricted, no session username set.");
-      // res.send(401, links.models);
-      res.redirect('/login');
-    }
+app.get('/links', util.checkUser, function(req, res) {
+  Links.reset().fetch().then(function(links) {
+    res.send(200, links.models);
+  });
 });
 
 app.post('/links', function(req, res) {
@@ -88,7 +65,7 @@ app.post('/links', function(req, res) {
             url: uri,
             title: title,
             base_url: req.headers.origin,
-            user_id: userId
+            // user_id: userId
           });
 
           link.save().then(function(newLink) {

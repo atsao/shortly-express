@@ -164,30 +164,30 @@ describe('', function() {
       beforeEach(function(done){
       // NOTE: was originally as what's commented out below. This does not add a user_id, so we changed it to be an actualy POST request instead.
       //   // save a link to the database
-      //   link = new Link({
-      //     url: 'http://www.github.com/',
-      //     title: 'GitHub · Where software is built',
-      //     base_url: 'http://127.0.0.1:4568'
-      //   });
-      //   link.save().then(function(){
-      //     // done();
-      //   });
-
-        var options = {
-          'method': 'POST',
-          'followAllRedirects': true,
-          'uri': 'http://127.0.0.1:4568/links',
-          'json': {
-            url: 'http://www.github.com/',
-            title: 'How people build software · GitHub', // updated to be GitHub's new slogan
-            base_url: 'http://127.0.0.1:4568'
-          }
-        };
-        // login via form and save session info
-        requestWithSession(options, function(error, res, body) {
-          link = body;
+        link = new Link({
+          url: 'http://www.github.com/',
+          title: 'How people build software · GitHub',
+          base_url: 'http://127.0.0.1:4568'
+        });
+        link.save().then(function(){
           done();
         });
+
+        // var options = {
+        //   'method': 'POST',
+        //   'followAllRedirects': true,
+        //   'uri': 'http://127.0.0.1:4568/links',
+        //   'json': {
+        //     url: 'http://www.github.com/',
+        //     title: 'How people build software · GitHub', // updated to be GitHub's new slogan
+        //     base_url: 'http://127.0.0.1:4568'
+        //   }
+        // };
+        // // login via form and save session info
+        // requestWithSession(options, function(error, res, body) {
+        //   link = body;
+        //   done();
+        // });
       });
 
       it('Returns the same shortened code', function(done) {
@@ -203,7 +203,7 @@ describe('', function() {
         requestWithSession(options, function(error, res, body) {
           var code = res.body.code;
           // below was originally link.get('code'), which no longer worked once we changed it from adding directly to the db to doing a POST request. Same each place link.code appears below.
-          expect(code).to.equal(link.code);
+          expect(code).to.equal(link.get('code'));
           done();
         });
       });
@@ -211,7 +211,7 @@ describe('', function() {
       it('Shortcode redirects to correct url', function(done) {
         var options = {
           'method': 'GET',
-          'uri': 'http://127.0.0.1:4568/' + link.code
+          'uri': 'http://127.0.0.1:4568/' + link.get('code')
         };
 
         requestWithSession(options, function(error, res, body) {
@@ -229,7 +229,7 @@ describe('', function() {
 
         requestWithSession(options, function(error, res, body) {
           expect(body).to.include('"title":"How people build software · GitHub"');  // updated to be GitHub's new slogan
-          expect(body).to.include('"code":"' + link.code + '"');
+          expect(body).to.include('"code":"' + link.get('code') + '"');
           done();
         });
       });
